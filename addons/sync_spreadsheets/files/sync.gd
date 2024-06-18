@@ -3,7 +3,7 @@ extends Control
 
 @onready var http : HTTP = $HTTP
 
-@export var sheets_resource : Resource = SheetsResource.new()
+var sheets_resource : Resource
 
 # TODO: configure this options
 var options = {
@@ -16,6 +16,7 @@ var config = ConfigFile.new()
 
 
 func _ready():
+	sheets_resource = SheetsResource.new()
 	_load_config()
 	_sync_csv_files()
 	_save_config()
@@ -41,13 +42,18 @@ func _load_config():
 		config.get_value("Options", "options", options)
 	
 	if ResourceLoader.exists("user://_sync_csv_spreadsheets.res"):
-		sheets_resource = ResourceLoader.load("user://_sync_csv_spreadsheets.res")
+		var new_sheets_resource = ResourceLoader.load("user://_sync_csv_spreadsheets.res")
+		if new_sheets_resource is SheetsResource:
+			sheets_resource = new_sheets_resource
+	
+	_save_config()
 
 
 func _save_config():
 	ResourceSaver.save(sheets_resource, "user://_sync_csv_spreadsheets.res")
 	config.set_value("Options", "options", options)
 	config.save("user://_sync_csv_spreadsheets.cfg")
+	#print("Sync CSV Spreadsheets configurations saved!")
 
 
 func _sync_sheet(sheet : SheetResource):
@@ -90,14 +96,15 @@ func _get_all_file_paths(path: String, file_extension: String = "") -> Array[Str
 
 
 func _on_open_sheets_resource_pressed():
-	EditorInterface.get_inspector().resource_selected.emit(sheets_resource, "")
-
+	#printt("Showing", sheets_resource)
+	EditorInterface.get_inspector().resource_selected.emit(sheets_resource, "user://_sync_csv_spreadsheets.res")
+	
 
 func _on_save_sheets_resource_pressed():
 	_save_config()
-	printt("Saved: ", sheets_resource.sheets[0].sheet_id)
+	#printt("Saved: ", sheets_resource.sheets[0].sheet_id)
 	_load_config()
-	printt("Loaded: ", sheets_resource.sheets[0].sheet_id)
+	#printt("Loaded: ", sheets_resource.sheets[0].sheet_id)
 
 
 func _on_sync_now_pressed():

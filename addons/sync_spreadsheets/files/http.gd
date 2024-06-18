@@ -27,20 +27,20 @@ func req(url: String, ## url ended in /
 	if error != OK:
 		push_error("An error occurred in the HTTP request. This should be not happened, is a code error!")
 	else:
-		print("New HTTP request!")
+		pass # print("New HTTP request!")
 
 
 func _req_completed(result, response_code, headers, body, callback: Callable):
-	print("REQ COMPLETED. result: " + str(result) + " response_code: " + str(response_code))
+	#print("REQ COMPLETED. result: " + str(result) + " response_code: " + str(response_code))
 	var err = OK
 	if result != HTTPRequest.RESULT_SUCCESS:
-		printt("ERROR: You are OFFLINE")
+		printerr("ERROR: You are OFFLINE")
 		err = result
 	elif response_code >= 400:
-		printt("ERROR: Request INVALID")
+		printerr("ERROR: Request INVALID")
 		err = response_code
 	else:
-		printt("ONLINE")
+		pass # printt("ONLINE")
 
 	var json = JSON.new()
 	json.parse(body.get_string_from_utf8())
@@ -48,4 +48,4 @@ func _req_completed(result, response_code, headers, body, callback: Callable):
 	callback.call(response, err)
 	
 	if err != OK:
-		printerr("Godot AI - ERROR CALLING API : ", response)
+		printerr("ERROR response: ", response)
