@@ -1,8 +1,8 @@
 # Godot Sync Spreadsheets
 
-This is a plugin for Godot 4+ that allows to syncronize CSV files with Google Spreadsheets from godot. 
+This is a plugin for Godot 4+ that allows to synchronize CSV files with Google Spreadsheets from godot. 
 
-It's usefull for having translations or colaborative databases on Spreadsheets and  syncronize them with your game when you create without downloading on every change, just click a buttom from editor.
+It's useful for having translations or collaborative databases on Spreadsheets and synchronize them with your game when you create without downloading on every change, just click a button from editor.
 
 ## How install this plugin?
 
