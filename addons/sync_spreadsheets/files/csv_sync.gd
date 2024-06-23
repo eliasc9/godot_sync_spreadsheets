@@ -29,6 +29,11 @@ func _ready() -> void:
 	if config.auto_sync_on_plugin_load:
 		sync_sheets()
 		
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED:
+		if is_visible_in_tree():
+			print("woah!")
+		
 func update_sheet_list() -> void:
 	while tree_root.get_child_count() < config.sheets.size():
 		tree_root.create_child()
@@ -43,6 +48,7 @@ func update_sheet_list() -> void:
 		item.set_text(1, sheet.last_updated)
 		item.set_metadata(0, sheet)
 	remove_button.disabled = !is_instance_valid(sheet_tree.get_selected())
+	$CheckBox.button_pressed = config.auto_sync_on_plugin_load
 
 func load_config() -> void:
 	if config:
@@ -133,3 +139,7 @@ func _on_sheet_tree_item_selected() -> void:
 func _on_sheet_tree_nothing_selected() -> void:
 	remove_button.disabled = true
 	sheet_tree.deselect_all()
+
+func _on_check_box_toggled(toggled_on: bool) -> void:
+	config.auto_sync_on_plugin_load = toggled_on
+	save_config()
