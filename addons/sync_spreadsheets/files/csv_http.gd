@@ -1,9 +1,8 @@
 @tool
 extends Node
-class_name HTTP
+class_name CsvHTTP
 
 const HEADER = ["Content-Type: application/json; charset=UTF-8"]
-
 
 func req(url: String, ## url ended in /
 		callback: Callable, ## callback(response : Dictionary)
@@ -15,7 +14,7 @@ func req(url: String, ## url ended in /
 	
 	var http_request = HTTPRequest.new()
 	add_child(http_request)
-	http_request.request_completed.connect(func(r,c,h,b): _req_completed(r,c,h,b, callback))
+	http_request.request_completed.connect(func(r,c,h,b): _req_completed(r,c,h,b,callback))
 	
 	var QUERY = "?" + "&".join(query.keys().map(func(k): return k.uri_encode() + "=" + str(query[k]).uri_encode()))
 	var error: Error
@@ -28,7 +27,6 @@ func req(url: String, ## url ended in /
 		push_error("An error occurred in the HTTP request. This should be not happened, is a code error!")
 	else:
 		pass # print("New HTTP request!")
-
 
 func _req_completed(result, response_code, headers, body, callback: Callable):
 	#print("REQ COMPLETED. result: " + str(result) + " response_code: " + str(response_code))
