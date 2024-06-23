@@ -29,10 +29,10 @@ func _ready() -> void:
 	if config.auto_sync_on_plugin_load:
 		sync_sheets()
 		
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_VISIBILITY_CHANGED:
-		if is_visible_in_tree():
-			print("woah!")
+#func _notification(what: int) -> void:
+	#if what == NOTIFICATION_VISIBILITY_CHANGED:
+		#if is_visible_in_tree():
+			#print("woah!")
 		
 func update_sheet_list() -> void:
 	while tree_root.get_child_count() < config.sheets.size():
