@@ -3,33 +3,50 @@ extends Control
 const CONFIG_PATH : String = "user://sync_csv_spreadsheets.tres"
 
 @onready var http : CsvHTTP = %HTTP
-@onready var sheet_list : ItemList = %SheetList
+@onready var sheet_tree : Tree = %SheetTree
+@onready var remove_button : Button = %RemoveButton
 var config : CsvConfig
 var file_dialog : EditorFileDialog
+var tree_root : TreeItem
+# We don't want to do it when editing the scene file.
+var should_setup : bool = false
 
 func _ready() -> void:
+	if !should_setup:
+		return
+		
 	file_dialog = EditorFileDialog.new()
 	file_dialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
 	file_dialog.add_filter("*.csv", "CSV Files")
 	file_dialog.file_selected.connect(_on_add_file_selected)
 	add_child(file_dialog)
 	
+	sheet_tree.set_column_title(0, "Path")
+	sheet_tree.set_column_title(1, "Last Updated")
+	tree_root = sheet_tree.create_item()
+	
 	load_config()
 	if config.auto_sync_on_plugin_load:
 		sync_sheets()
 		
 func update_sheet_list() -> void:
-	var last := -1
-	if sheet_list.is_anything_selected():
-		last = sheet_list.get_selected_items()[0]
-	sheet_list.clear()
-	for sheet in config.sheets:
-		sheet_list.add_item(sheet.csv_path + " - " + sheet.updated_at)
-	if last >= 0 && last < sheet_list.item_count:
-		sheet_list.select(last)
-	%RemoveButton.disabled = !sheet_list.is_anything_selected()
+	while tree_root.get_child_count() < config.sheets.size():
+		tree_root.create_child()
+	while tree_root.get_child_count() > config.sheets.size():
+		tree_root.get_child(tree_root.get_child_count() - 1).free()
+	for i in config.sheets.size():
+		var sheet := config.sheets[i]
+		if !is_instance_valid(sheet):
+			continue
+		var item := tree_root.get_child(i)
+		item.set_text(0, sheet.csv_path)
+		item.set_text(1, sheet.last_updated)
+		item.set_metadata(0, sheet)
+	remove_button.disabled = !is_instance_valid(sheet_tree.get_selected())
 
 func load_config() -> void:
+	if config:
+		config.changed.disconnect(update_sheet_list)
 	if ResourceLoader.exists(CONFIG_PATH):
 		config = ResourceLoader.load(CONFIG_PATH)
 	else:
@@ -37,6 +54,7 @@ func load_config() -> void:
 		config.resource_name = "CSV Sync Configuration"
 		config.resource_path = CONFIG_PATH
 		save_config()
+	config.changed.connect(update_sheet_list)
 	update_sheet_list()
 
 func save_config() -> void:
@@ -55,13 +73,13 @@ func sync_sheets() -> void:
 			if err != OK:
 				printerr("Couldn't create file: " + sheet.csv_path)
 				continue # We don't want to sync this one.
+			EditorInterface.get_resource_filesystem().update_file(sheet.csv_path)
 		sync_sheet(sheet)
 	update_sheet_list()
-	# TODO: Refresh godot filesystem
 
 func sync_sheet(sheet : CsvSheetConfig) -> bool:
-	if sheet.document_id:
-		var url := "https://docs.google.com/spreadsheets/d/" + sheet.document_id + "/gviz/tq"
+	if sheet.spreadsheet_id:
+		var url := "https://docs.google.com/spreadsheets/d/" + sheet.spreadsheet_id + "/gviz/tq"
 		if sheet.sheet_name:
 			http.req(url, func(r, err): sync_sheet_callback(r, err, sheet), HTTPClient.METHOD_GET, { "tqx": "out:csv", "sheet": sheet.sheet_name }, {}, [], sheet.csv_path)
 			return true
@@ -71,29 +89,12 @@ func sync_sheet(sheet : CsvSheetConfig) -> bool:
 	return false
 
 func sync_sheet_callback(r, err, sheet) -> void:
-	sheet.updated_at = Time.get_datetime_string_from_system()
+	sheet.last_updated = Time.get_datetime_string_from_system()
 	save_config()
-
-func sync(url, sheet_name, csv_path) -> void:
-	http.req(url, func(r, err): printt(r, err), HTTPClient.METHOD_GET, { "tqx": "out:csv", "sheet": sheet_name }, {}, [], csv_path)
-
-func get_all_file_paths(path: String, file_extension: String = "") -> Array[String]:
-	var file_paths: Array[String] = []
-	var dir = DirAccess.open(path)
-	dir.list_dir_begin()
-	var file_name = dir.get_next()
-	while file_name != "":
-		var file_path = path + "/" + file_name
-		if dir.current_is_dir():
-			file_paths += get_all_file_paths(file_path, file_extension)
-		else:
-			if file_path.ends_with(file_extension):
-				file_paths.append(file_path)
-		file_name = dir.get_next()
-	dir.list_dir_end()
-	return file_paths
+	EditorInterface.get_resource_filesystem().scan_sources()
 
 func _on_edit_config_pressed() -> void:
+	_on_sheet_tree_nothing_selected()
 	EditorInterface.edit_resource(config)
 
 func _on_save_config_pressed() -> void:
@@ -102,16 +103,13 @@ func _on_save_config_pressed() -> void:
 func _on_sync_now_pressed() -> void:
 	sync_sheets()
 
-func _on_sheet_list_item_selected(index: int) -> void:
-	update_sheet_list()
-	if sheet_list.is_anything_selected():
-		EditorInterface.edit_resource(config.sheets[index])
-
 func _on_add_button_pressed() -> void:
 	file_dialog.popup_centered(Vector2(1024, 512))
 	
 func _on_add_file_selected(path : String) -> void:
-	var array := config.sheets.duplicate()
+	var array := config.sheets
+	if array.is_read_only():
+		array = array.duplicate()
 	var sheet := CsvSheetConfig.new()
 	sheet.csv_path = path
 	array.append(sheet)
@@ -119,9 +117,19 @@ func _on_add_file_selected(path : String) -> void:
 	save_config()
 
 func _on_remove_button_pressed() -> void:
-	if !sheet_list.is_anything_selected():
+	if !is_instance_valid(sheet_tree.get_selected()):
 		return
-	var array := config.sheets.duplicate()
-	array.remove_at(sheet_list.get_selected_items()[0])
+	var array := config.sheets
+	if array.is_read_only():
+		array = array.duplicate()
+	array.remove_at(sheet_tree.get_selected().get_index())
 	config.sheets = array
-	save_config()
+	update_sheet_list()
+
+func _on_sheet_tree_item_selected() -> void:
+	remove_button.disabled = false
+	EditorInterface.edit_resource(config.sheets[sheet_tree.get_selected().get_index()])
+
+func _on_sheet_tree_nothing_selected() -> void:
+	remove_button.disabled = true
+	sheet_tree.deselect_all()

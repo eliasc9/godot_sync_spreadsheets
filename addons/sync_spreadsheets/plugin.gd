@@ -6,6 +6,7 @@ func _enter_tree():
 	# So that the scene reloads everytime we activate the plugin, allowing for quicker prototyping.
 	var packed : PackedScene = load("res://addons/sync_spreadsheets/files/csv_sync.tscn")
 	sync_instance = packed.instantiate()
+	sync_instance.should_setup = true
 	# Not available in godot 4.2
 	# add_control_to_bottom_panel(sync_instance, "Sync CSV Spreadsheets", Shortcut.new())
 	add_control_to_bottom_panel(sync_instance, "Sync CSV")
