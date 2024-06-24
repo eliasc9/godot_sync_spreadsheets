@@ -1,9 +1,8 @@
 @tool
 extends Node
-class_name HTTP
+class_name CsvHTTP
 
 const HEADER = ["Content-Type: application/json; charset=UTF-8"]
-
 
 func req(url: String, ## url ended in /
 		callback: Callable, ## callback(response : Dictionary)
@@ -11,11 +10,11 @@ func req(url: String, ## url ended in /
 		query: Dictionary = {},
 		body: Dictionary = {},
 		headers : Array = HEADER,
-		path : String = ""):
+		path : String = "") -> Error:
 	
 	var http_request = HTTPRequest.new()
 	add_child(http_request)
-	http_request.request_completed.connect(func(r,c,h,b): _req_completed(r,c,h,b, callback))
+	http_request.request_completed.connect(func(r,c,h,b): _req_completed(r,c,h,b,callback))
 	
 	var QUERY = "?" + "&".join(query.keys().map(func(k): return k.uri_encode() + "=" + str(query[k]).uri_encode()))
 	var error: Error
@@ -26,9 +25,7 @@ func req(url: String, ## url ended in /
 	error = http_request.request(url + QUERY, headers, method, body_str)
 	if error != OK:
 		push_error("An error occurred in the HTTP request. This should be not happened, is a code error!")
-	else:
-		pass # print("New HTTP request!")
-
+	return error
 
 func _req_completed(result, response_code, headers, body, callback: Callable):
 	#print("REQ COMPLETED. result: " + str(result) + " response_code: " + str(response_code))
@@ -39,8 +36,6 @@ func _req_completed(result, response_code, headers, body, callback: Callable):
 	elif response_code >= 400:
 		printerr("ERROR: Request INVALID")
 		err = response_code
-	else:
-		pass # printt("ONLINE")
 
 	var json = JSON.new()
 	json.parse(body.get_string_from_utf8())
